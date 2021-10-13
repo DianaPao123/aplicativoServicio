@@ -102,7 +102,7 @@ namespace CertificadorWs.Business
                 if (!string.IsNullOrEmpty(RfcEmisor))
                 {
                     empresa empresa = nle.GetByRfc(RfcEmisor);
-                    SAT.CFDI.Cliente.Procesamiento.Encabezado encLMetadata2 = new SAT.CFDI.Cliente.Procesamiento.Encabezado(RfcEmisor, this.FechaHoy(), uuidsCancelar);
+                    SAT.CFDI.Cliente.Procesamiento.Encabezado encLMetadata2 = new SAT.CFDI.Cliente.Procesamiento.Encabezado(RfcReceptor,RfcEmisor,Uuid);
                     path = Path.Combine(ConfigurationManager.AppSettings["Resources"], RfcEmisor);
                     string pathCer = Path.Combine(path, "Certs", "csd.cer");
                     string pathKey = Path.Combine(path, "Certs", "csd.key");

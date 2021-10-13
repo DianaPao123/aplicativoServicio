@@ -582,7 +582,7 @@ namespace ServicioLocal.Business
                                                             result = "CFDI33133 - El campo ResidenciaFiscal, no contiene un valor del catálogo c_Pais.";
                                                             return result;
                                                         }
-                                                    }
+                                                    }                                                                  
                                                     if (com.Receptor.ResidenciaFiscalSpecified && com.Receptor.Rfc != "XEXX010101000")
                                                     {
                                                         result = "CFDI33134 - El RFC del receptor es de un RFC registrado en el SAT o un RFC genérico nacional y EXISTE el campo ResidenciaFiscal.";

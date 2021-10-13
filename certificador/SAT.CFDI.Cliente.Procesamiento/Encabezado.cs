@@ -8,7 +8,12 @@ namespace SAT.CFDI.Cliente.Procesamiento
 {
     public class Encabezado
     {
-       
+        public Encabezado(string strPRFCR, string strPRFCE, string strPUUID)
+        {
+            RfcEmisor=strPRFCE;
+            UUID=strPUUID;
+            RfcReceptor = strPRFCR;
+        }
 
         public Encabezado(string strPRfc, string versionx, string strPNumCert, string strPUUID,
                           DateTime datPFecha, string strPXml)
@@ -88,6 +93,15 @@ namespace SAT.CFDI.Cliente.Procesamiento
             get { return _xml; }
             set { _xml = value; }
         }
+
+        string _RfcReceptor;
+        
+            public string RfcReceptor
+        {
+            get { return _RfcReceptor; }
+            set { _RfcReceptor = value; }
+        }
+
 
     }
 }

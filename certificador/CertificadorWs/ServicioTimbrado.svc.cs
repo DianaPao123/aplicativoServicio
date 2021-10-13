@@ -1650,6 +1650,9 @@ namespace CertificadorWs
                     {
                         string erroIH = "";
                         IngresosHidrocarburos I = this.DesSerializarIH(element, ref erroIH);
+                        if (erroIH != "")
+                            return erroIH;
+
                         ValidarIngresoHidrocarburos VI = new ValidarIngresoHidrocarburos();
                         erroIH = VI.ProcesarIngresoHidrocarburos(I, comp.Version, comp.TipoDeComprobante, comp.Total);
                         if (erroIH != "0")
@@ -1662,6 +1665,8 @@ namespace CertificadorWs
                     {
                         string erroGH = "";
                         GastosHidrocarburos I2 = this.DesSerializarGH(element, ref erroGH);
+                        if (erroGH != "")
+                            return erroGH;
                         ValidarGastosHidrocarburos VI2 = new ValidarGastosHidrocarburos();
                         erroGH = VI2.ProcesarGastosHidrocarburos(I2, comp.Version, comp.TipoDeComprobante);
                         if (erroGH != "0")
@@ -1701,6 +1706,8 @@ namespace CertificadorWs
                         {
                             string erroINE = "";
                             INE I3 = this.DesSerializarINE(element, ref erroINE);
+                            if (erroINE != "")
+                                return erroINE;
                             ValidarINE VI3 = new ValidarINE();
                             erroINE = VI3.ProcesarINE(I3);
                             if (erroINE != "0")
@@ -1713,6 +1720,8 @@ namespace CertificadorWs
                         {
                             string erroECC = "";
                             EstadoDeCuentaCombustible E = this.DesSerializarECC(element, ref erroECC);
+                            if (erroECC != "")
+                                return erroECC;
                             ValidarECC VE = new ValidarECC();
                             erroECC = VE.ProcesarECC(E, comp.TipoDeComprobante, comp.Version);
                             if (erroECC != "0")
@@ -1726,6 +1735,8 @@ namespace CertificadorWs
                         {
                             string erroECC = "";
                             IdentificacionDeRecurso E2 = this.DesSerializarIDR(element, ref erroECC);
+                            if (erroECC != "")
+                                return erroECC;
                             ValidarIDR VE2 = new ValidarIDR();
                             erroECC = VE2.ProcesarIDR(E2, comp.TipoDeComprobante, comp.Version);
                             if (erroECC != "0")
@@ -2497,6 +2508,8 @@ namespace CertificadorWs
         }
 
         public string ProcesarRespuestaAceptacionRechazo(string userName, string password, List<Folios> uuid, string rfcEmisor, string rfcReceptor)
+        
+      //  public string ProcesarRespuestaAceptacionRechazo(string userName, string password,  string uuid, string rfcEmisor, string rfcReceptor)
         {
             ServicioTimbrado.Logger.Debug(userName);
             MembershipUser x = NtLinkLogin.ValidateUser(userName, password);
@@ -2523,6 +2536,12 @@ namespace CertificadorWs
             }
             string pac = ConfigurationManager.AppSettings["RFCPac"];
             Cancelador canceladorConsulta = new Cancelador();
+            //---------quitar-----
+            //List<Folios> F = new List<Folios>();
+            //Folios f = new Folios();
+            //f.UUDI = uuid;
+            //F.Add(f);
+
             return canceladorConsulta.ProcesarRespuestaAceptacionRechazo(rfcReceptor, pac, uuid);
         }
 

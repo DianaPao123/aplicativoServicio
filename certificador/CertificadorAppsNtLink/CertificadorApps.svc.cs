@@ -126,8 +126,12 @@ namespace CertificadorAppsNtLink
             string result2;
             try
             {
+                string errorescfdi = "";
                 XElement element = XElement.Load(new StringReader(comprobante));
-                ServicioLocal.Business.Comprobante comp = this.DesSerializar(element);
+                ServicioLocal.Business.Comprobante comp = this.DesSerializar(element, ref errorescfdi);
+                if (!string.IsNullOrEmpty(errorescfdi))
+                    return errorescfdi;
+          
 
                 if (comprobante.Contains("<cartaporte:CartaPorte"))
                 {
@@ -150,6 +154,9 @@ namespace CertificadorAppsNtLink
                 {
                     string erroIH = "";
                     IngresosHidrocarburos I = this.DesSerializarIH(element, ref erroIH);
+                    if (!string.IsNullOrEmpty(erroIH) )
+                        return erroIH;
+               
                     ValidarIngresoHidrocarburos VI = new ValidarIngresoHidrocarburos();
                     erroIH = VI.ProcesarIngresoHidrocarburos(I, comp.Version, comp.TipoDeComprobante, comp.Total);
                     if (erroIH != "0")
@@ -162,6 +169,9 @@ namespace CertificadorAppsNtLink
                 {
                     string erroGH = "";
                     GastosHidrocarburos I2 = this.DesSerializarGH(element, ref erroGH);
+                    if (!string.IsNullOrEmpty(erroGH))
+                        return erroGH;
+               
                     ValidarGastosHidrocarburos VI2 = new ValidarGastosHidrocarburos();
                     erroGH = VI2.ProcesarGastosHidrocarburos(I2, comp.Version, comp.TipoDeComprobante);
                     if (erroGH != "0")
@@ -178,8 +188,14 @@ namespace CertificadorAppsNtLink
                 bool pago10 = comprobante.Contains("pago10:Pagos");
                 if (pago10)
                 {
-                    ServicioLocal.Business.Pagoo.Comprobante pagoDatos = this.DesSerializarP(element);
-                    ServicioLocal.Business.Complemento.Pagos pagoss = this.DesSerializarPagos(element);
+                    string errorespago = null;
+                    ServicioLocal.Business.Pagoo.Comprobante pagoDatos = this.DesSerializarP(element, ref errorespago);
+                    if (!string.IsNullOrEmpty(errorespago))
+                        return errorespago;
+                    ServicioLocal.Business.Complemento.Pagos pagoss = this.DesSerializarPagos(element, ref errorespago);
+                    if (!string.IsNullOrEmpty(errorespago))
+                        return errorespago;
+                    
                     ValidarPago VP = new ValidarPago();
                     string ErrorPagos = VP.ProcesarPago(comp, pagoss, pagoDatos);
                     if (ErrorPagos != "0")
@@ -192,6 +208,9 @@ namespace CertificadorAppsNtLink
                 {
                     string erroINE = "";
                     INE I3 = this.DesSerializarINE(element, ref erroINE);
+                    if (!string.IsNullOrEmpty(erroINE))
+                        return erroINE;
+               
                     ValidarINE VI3 = new ValidarINE();
                     erroINE = VI3.ProcesarINE(I3);
                     if (erroINE != "0")
@@ -214,6 +233,8 @@ namespace CertificadorAppsNtLink
                     {
                         string erroECC = "";
                         EstadoDeCuentaCombustible E = this.DesSerializarECC(element, ref erroECC);
+                        if (!string.IsNullOrEmpty(erroECC))
+                            return erroECC;
                         ValidarECC VE = new ValidarECC();
                         erroECC = VE.ProcesarECC(E, comp.TipoDeComprobante, comp.Version);
                         if (erroECC != "0")
@@ -392,49 +413,74 @@ namespace CertificadorAppsNtLink
             return configUserName == userName && configPassword == password;
         }
 
-        private ServicioLocal.Business.Comprobante DesSerializar(XElement element)
+        private ServicioLocal.Business.Comprobante DesSerializar(XElement element, ref string errorescfdi)
         {
-            XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Comprobante));
-            string xml = element.ToString();
-            StringReader reader = new StringReader(xml);
-            return (ServicioLocal.Business.Comprobante)ser.Deserialize(reader);
-        }
-
-        private ServicioLocal.Business.Pagoo.Comprobante DesSerializarP(XElement element)
-        {
-            XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Pagoo.Comprobante));
-            string xml = element.ToString();
-            StringReader reader = new StringReader(xml);
-            return (ServicioLocal.Business.Pagoo.Comprobante)ser.Deserialize(reader);
-        }
-
-        private ServicioLocal.Business.Complemento.Pagos DesSerializarPagos(XElement element)
-        {
-            IEnumerable<XElement> ImpL = element.Elements(this._ns + "Complemento");
-            ServicioLocal.Business.Complemento.Pagos result;
-            if (ImpL != null)
+            try
             {
-                IEnumerable<XElement> pag = ImpL.Elements(this._ns7 + "Pagos");
-                using (IEnumerator<XElement> enumerator = pag.GetEnumerator())
+                XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Comprobante));
+                string xml = element.ToString();
+                StringReader reader = new StringReader(xml);
+                return (ServicioLocal.Business.Comprobante)ser.Deserialize(reader);
+            }
+            catch (Exception ex)
+            {
+                errorescfdi = ex.InnerException.Message;
+                 return null;
+            }
+
+        }
+
+        private ServicioLocal.Business.Pagoo.Comprobante DesSerializarP(XElement element, ref string errorespago)
+        {
+            try
+            {
+                XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Pagoo.Comprobante));
+                string xml = element.ToString();
+                StringReader reader = new StringReader(xml);
+                return (ServicioLocal.Business.Pagoo.Comprobante)ser.Deserialize(reader);
+            }
+            catch (Exception ex)
+            {
+                errorespago = ex.InnerException.Message;
+                return null;
+            }
+        }
+
+        private ServicioLocal.Business.Complemento.Pagos DesSerializarPagos(XElement element, ref string errorespago)
+        {
+            try
+            {
+                IEnumerable<XElement> ImpL = element.Elements(this._ns + "Complemento");
+                ServicioLocal.Business.Complemento.Pagos result;
+                if (ImpL != null)
                 {
-                    if (enumerator.MoveNext())
+                    IEnumerable<XElement> pag = ImpL.Elements(this._ns7 + "Pagos");
+                    using (IEnumerator<XElement> enumerator = pag.GetEnumerator())
                     {
-                        XElement e = enumerator.Current;
-                        XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Complemento.Pagos));
-                        string xml = e.ToString();
-                        StringReader reader = new StringReader(xml);
-                        ServicioLocal.Business.Complemento.Pagos comLXMLComprobante = (ServicioLocal.Business.Complemento.Pagos)ser.Deserialize(reader);
-                        result = comLXMLComprobante;
-                        return result;
+                        if (enumerator.MoveNext())
+                        {
+                            XElement e = enumerator.Current;
+                            XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Complemento.Pagos));
+                            string xml = e.ToString();
+                            StringReader reader = new StringReader(xml);
+                            ServicioLocal.Business.Complemento.Pagos comLXMLComprobante = (ServicioLocal.Business.Complemento.Pagos)ser.Deserialize(reader);
+                            result = comLXMLComprobante;
+                            return result;
+                        }
                     }
+                    result = null;
                 }
-                result = null;
+                else
+                {
+                    result = null;
+                }
+                return result;
             }
-            else
+            catch (Exception ex)
             {
-                result = null;
+                errorespago = ex.InnerException.Message;
+                return null;
             }
-            return result;
         }
 
         private ImpuestosLocales DesSerializarImpuestosLocales(XElement element)

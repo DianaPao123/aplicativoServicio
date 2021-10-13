@@ -374,11 +374,11 @@ namespace SAT.CFDI.Cliente.Procesamiento
                 PeticionConsultaRelacionados D = new PeticionConsultaRelacionados();
                 CfdiConsultaRelacionadosServiceClient CFDI = new CfdiConsultaRelacionadosServiceClient();
                 D.RfcPacEnviaSolicitud = RfcPacEnviaSolicitud;
-                if (!string.IsNullOrEmpty(RfcReceptor))
+                //if (!string.IsNullOrEmpty(RfcReceptor))
                 D.RfcReceptor = RfcReceptor;
                 D.Signature = asig;
                 D.Uuid = Uuid;
-               if( !string.IsNullOrEmpty(RfcEmisor))
+               //if( !string.IsNullOrEmpty(RfcEmisor))
                 D.RfcEmisor = RfcEmisor;
                 HttpRequestMessageProperty tokenAutenticacion = this.AutenticaServicio();
                 using (new OperationContextScope(CFDI.InnerChannel))
@@ -526,19 +526,20 @@ namespace SAT.CFDI.Cliente.Procesamiento
             {
                 string strPXmlFirmado = "";
                 SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.SignatureType Asig = new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.SignatureType();
-                Asig.Id = "Signature";
+                //Asig.Id = "Signature";
                 Asig.SignedInfo = new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.SignedInfoType();
-                Asig.SignedInfo.Id = "Signature-SignedInfo";
+               // Asig.SignedInfo.Id = "Signature-SignedInfo";
                 Asig.SignedInfo.CanonicalizationMethod = new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.CanonicalizationMethodType();
-                Asig.SignedInfo.CanonicalizationMethod.Algorithm = "http://www.w3.org/TR/2001/REC-xml-c14n20010315";
+                Asig.SignedInfo.CanonicalizationMethod.Algorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
                 Asig.SignedInfo.SignatureMethod = new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.SignatureMethodType();
                 Asig.SignedInfo.SignatureMethod.Algorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
                 Asig.SignedInfo.Reference = new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.ReferenceType();
-                Asig.SignedInfo.Reference.URI = "#Certificate1";
+              //  Asig.SignedInfo.Reference.URI = "#Certificate1";
+                Asig.SignedInfo.Reference.URI = "";
                 List<SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.TransformType> T = new List<SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.TransformType>();
                 T.Add(new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.TransformType
                 {
-                    Algorithm = "http://www.w3.org/2000/09/xmldsig#envelopedsignature"
+                    Algorithm = "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
                 });
                 Asig.SignedInfo.Reference.Transforms = T.ToArray();
                 Asig.SignedInfo.Reference.DigestMethod = new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.DigestMethodType();
@@ -548,15 +549,20 @@ namespace SAT.CFDI.Cliente.Procesamiento
                     strPPrivada += ".pem";
                 }
                 string ext = Path.GetExtension(strPPrivada);
-                AccesoServicios.SignXmlFile(this.ArmarXmlPreFirma(encLMetadata), ref strPXmlFirmado, OpensslKey.DecodePrivateKey(File.ReadAllBytes(strPPrivada), pass, ext));
+                AccesoServicios.SignXmlFile(this.ArmarXmlPreFirmaRel(encLMetadata), ref strPXmlFirmado, OpensslKey.DecodePrivateKey(File.ReadAllBytes(strPPrivada), pass, ext));
                 string hex = strPXmlFirmado.Substring(strPXmlFirmado.IndexOf("<DigestValue>") + 13, strPXmlFirmado.IndexOf("</DigestValue>") - strPXmlFirmado.IndexOf("<DigestValue>") - 13);
                 Asig.SignedInfo.Reference.DigestValue = Convert.FromBase64String(hex);
                 Asig.SignatureValue = Convert.FromBase64String(strPXmlFirmado.Substring(strPXmlFirmado.IndexOf("<SignatureValue>") + 16, strPXmlFirmado.IndexOf("</SignatureValue>") - strPXmlFirmado.IndexOf("<SignatureValue>") - 16));
                 X509Certificate2 x509 = new X509Certificate2(strCertificado);
                 Asig.KeyInfo = new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.KeyInfoType();
                 Asig.KeyInfo.X509Data = new SAT.CFDI.Cliente.Procesamiento.ServicioRelacionados.X509DataType();
+                
+                Asig.KeyInfo.X509Data.X509IssuerSerial = new ServicioRelacionados.X509IssuerSerialType();
+                Asig.KeyInfo.X509Data.X509IssuerSerial.X509IssuerName = x509.IssuerName.Name;
+                Asig.KeyInfo.X509Data.X509IssuerSerial.X509SerialNumber = x509.SerialNumber;
+
                 Asig.KeyInfo.X509Data.X509Certificate = File.ReadAllBytes(strCertificado);
-                Asig.KeyInfo.Id = "Certificate1";
+               // Asig.KeyInfo.Id = "Certificate1";
                 result = Asig;
             }
             catch (Exception exception)
@@ -794,7 +800,20 @@ namespace SAT.CFDI.Cliente.Procesamiento
             str = encLMetadata.LisMListaFolios.Cast<object>().Aggregate(str, (string current, object elemento) => current + "<Folios><UUID>" + elemento.ToString() + "</UUID></Folios>");
             return str + "</Cancelacion>";
         }
-
+        private string ArmarXmlPreFirmaRel(Encabezado encLMetadata)
+        {
+            string str = string.Concat(new string[]
+			{
+				"<?xml version=\"1.0\"?><solicitud xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"  RfcPacEnviaSolicitud=\"\" RfcEmisor=\"",
+				HttpUtility.HtmlEncode(encLMetadata.RfcEmisor),
+				"\" RfcReceptor=\"",
+					HttpUtility.HtmlEncode(encLMetadata.RfcReceptor),
+				"\" Uuid=\"",
+				encLMetadata.UUID,
+				"\" xmlns=\"http://cancelacfd.sat.gob.mx\">"
+			});
+            return str + "</solicitud>";
+        }
         private static bool ValidarCertificadoRemoto(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors policyErrors)
         {
             return true;

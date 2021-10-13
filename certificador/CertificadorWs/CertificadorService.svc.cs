@@ -64,20 +64,39 @@ namespace CertificadorWs
             }
         }
 
-        private ServicioLocal.Business.Comprobante DesSerializar(XElement element)
+        private ServicioLocal.Business.Comprobante DesSerializar(XElement element, ref string errorescfdi)
         {
-            XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Comprobante));
-            string xml = element.ToString();
-            StringReader reader = new StringReader(xml);
-            return (ServicioLocal.Business.Comprobante)ser.Deserialize(reader);
+            try
+            {
+                XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Comprobante));
+                string xml = element.ToString();
+                StringReader reader = new StringReader(xml);
+                return (ServicioLocal.Business.Comprobante)ser.Deserialize(reader);
+            }
+             
+            catch (Exception ex)
+            {
+                errorescfdi = ex.InnerException.Message;
+                return null;
+            }
         }
 
-        private ServicioLocal.Business.Pagoo.Comprobante DesSerializarP(XElement element)
+        private ServicioLocal.Business.Pagoo.Comprobante DesSerializarP(XElement element ,ref string errorespago)
         {
-            XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Pagoo.Comprobante));
-            string xml = element.ToString();
-            StringReader reader = new StringReader(xml);
-            return (ServicioLocal.Business.Pagoo.Comprobante)ser.Deserialize(reader);
+            try
+            {
+
+                XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Pagoo.Comprobante));
+                string xml = element.ToString();
+                StringReader reader = new StringReader(xml);
+                return (ServicioLocal.Business.Pagoo.Comprobante)ser.Deserialize(reader);
+            }
+             
+            catch (Exception ex)
+            {
+                errorespago = ex.InnerException.Message;
+                return null;
+            }
         }
 
         public ComercioExterior DesSerializarComercioExterior(XElement element, ref string erroresNom)
@@ -308,13 +327,34 @@ namespace CertificadorWs
             string result;
             try
             {
+
+                string errorescfdi = ""; 
                 XElement element = XElement.Load(new StringReader(comprobante));
-                ServicioLocal.Business.Comprobante comp = this.DesSerializar(element);
+                ServicioLocal.Business.Comprobante comp = this.DesSerializar(element, ref errorescfdi);
+                if (!string.IsNullOrEmpty(errorescfdi))
+                    return errorescfdi;
+                
+                //-------------------------
+                if (comprobante.Contains("<cartaporte:CartaPorte"))
+                {
+                    string erroIH = "";
+                    CartaPorte I2 = this.DesSerializarCARTP(element, ref erroIH);
+                    if (!string.IsNullOrEmpty(erroIH))
+                        return erroIH;
+                    ValidarCartaP VI2 = new ValidarCartaP();
+                    erroIH = VI2.ProcesarCarta(I2, comp);
+                    if (erroIH != "0")
+                    {
+                        return erroIH;
+                    }
+                }
                 if (comprobante.Contains("<ieeh:IngresosHidrocarburos"))
                 {
                     string erroIH = "";
                     IngresosHidrocarburos I = this.DesSerializarIH(element, ref erroIH);
-                    ValidarIngresoHidrocarburos VI = new ValidarIngresoHidrocarburos();
+                    if (!string.IsNullOrEmpty(erroIH))
+                        return erroIH;
+                     ValidarIngresoHidrocarburos VI = new ValidarIngresoHidrocarburos();
                     erroIH = VI.ProcesarIngresoHidrocarburos(I, comp.Version, comp.TipoDeComprobante, comp.Total);
                     if (erroIH != "0")
                     {
@@ -326,6 +366,8 @@ namespace CertificadorWs
                 {
                     string erroGH = "";
                     GastosHidrocarburos I2 = this.DesSerializarGH(element, ref erroGH);
+                    if (!string.IsNullOrEmpty(erroGH))
+                        return erroGH;
                     ValidarGastosHidrocarburos VI2 = new ValidarGastosHidrocarburos();
                     erroGH = VI2.ProcesarGastosHidrocarburos(I2, comp.Version, comp.TipoDeComprobante);
                     if (erroGH != "0")
@@ -340,10 +382,44 @@ namespace CertificadorWs
                     IL = this.DesSerializarImpuestosLocales(element);
                 }
                 bool pago10 = comprobante.Contains("pago10:Pagos");
+                if (comp.TipoDeComprobante == "P" && !pago10)
+                {
+                    return "CFDI no contiene el complemento PAGO";
+                    
+                }
                 if (pago10)
                 {
+                    string errorespago = null;
+                    ServicioLocal.Business.Pagoo.Comprobante pagoDatos = this.DesSerializarP(element , ref errorespago);
+                    if (!string.IsNullOrEmpty(errorespago))
+                        return errorespago;
+                    ServicioLocal.Business.Complemento.Pagos pagoss = this.DesSerializarPagos(element, ref errorespago);
+                    if (!string.IsNullOrEmpty(errorespago))
+                        return errorespago;
+                    ValidarPago VP = new ValidarPago();
+                    string ErrorPagos = VP.ProcesarPago(comp, pagoss, pagoDatos);
+                    if (ErrorPagos != "0")
+                    {
+                        return ErrorPagos;
+                    }
                 }
+                
                 bool ComerExt = comprobante.Contains("cce11:ComercioExterior");
+                if (ComerExt)
+                {
+                    string erroresComer = null;
+                    ValidarComercioExterior val = new ValidarComercioExterior();
+                    ComercioExterior Comer = this.DesSerializarComercioExterior(element, ref erroresComer);
+                    if (!string.IsNullOrEmpty(erroresComer))
+                    {
+                        return erroresComer;
+                    }
+                    erroresComer = val.ProcesarComercioExterior(Comer, comp);
+                    if (erroresComer != "0")
+                    {
+                        return erroresComer;
+                    }
+                }
                 ValidarCFDI33 valida = new ValidarCFDI33();
                 string errorCFDI33 = valida.ProcesarCFDI33(comp, comprobante, pago10, ComerExt, IL);
                 if (errorCFDI33 != "0")
@@ -388,10 +464,13 @@ namespace CertificadorWs
                 {
                     throw new FaultException("Nombre de usuario o contraseña incorrecta");
                 }
-           
 
+                string errorescfdi = "";
                 XElement element = XElement.Load(new StringReader(comprobante));
-                ServicioLocal.Business.Comprobante comp = this.DesSerializar(element);
+                ServicioLocal.Business.Comprobante comp = this.DesSerializar(element, ref errorescfdi);
+                if (!string.IsNullOrEmpty(errorescfdi))
+                    return errorescfdi;
+              
                 empresa empres = new empresa();
                 if (comp.Emisor != null && comp.Emisor.Rfc != null)
                 {
@@ -428,6 +507,9 @@ namespace CertificadorWs
                     string erroIH = "";
                     IngresosHidrocarburos I = this.DesSerializarIH(element, ref erroIH);
                     ValidarIngresoHidrocarburos VI = new ValidarIngresoHidrocarburos();
+                    if (!string.IsNullOrEmpty(erroIH))
+                        return erroIH;
+
                     erroIH = VI.ProcesarIngresoHidrocarburos(I, comp.Version, comp.TipoDeComprobante, comp.Total);
                     if (erroIH != "0")
                     {
@@ -460,8 +542,13 @@ namespace CertificadorWs
                 }
                 if (pago10)
                     {
-                        ServicioLocal.Business.Pagoo.Comprobante pagoDatos = this.DesSerializarP(element);
-                        ServicioLocal.Business.Complemento.Pagos pagoss = this.DesSerializarPagos(element);
+                        string errorespago = null;
+                        ServicioLocal.Business.Pagoo.Comprobante pagoDatos = this.DesSerializarP(element, ref errorespago);
+                        if (!string.IsNullOrEmpty(errorespago))
+                            return errorespago;
+                        ServicioLocal.Business.Complemento.Pagos pagoss = this.DesSerializarPagos(element, ref errorespago);
+                        if (!string.IsNullOrEmpty(errorespago))
+                            return errorespago;
                         ValidarPago VP = new ValidarPago();
                         string ErrorPagos = VP.ProcesarPago(comp, pagoss, pagoDatos);
                         if (ErrorPagos != "0")
@@ -471,8 +558,28 @@ namespace CertificadorWs
                         }
                     }
                     bool ComerExt = comprobante.Contains("cce11:ComercioExterior");
+                //---------------------------
+                    if (ComerExt)
+                    {
+                        string erroresComer = null;
+                        ValidarComercioExterior val = new ValidarComercioExterior();
+                        ComercioExterior Comer = this.DesSerializarComercioExterior(element, ref erroresComer);
+                        if (!string.IsNullOrEmpty( erroresComer))
+                        {
+                            result2 = erroresComer;
+                            return result2;
+                        }
+                        erroresComer = val.ProcesarComercioExterior(Comer, comp);
+                        if (erroresComer != "0")
+                        {
+                            return erroresComer;
+                        }
+                    }
+                //---------------
                     ValidarCFDI33 valida = new ValidarCFDI33();
                     string errorCFDI33 = valida.ProcesarCFDI33(comp, comprobante, pago10, ComerExt, IL);
+
+
                     if (errorCFDI33 != "0")
                     {
                         CertificadorService.Logger.Error("Error al abrir el comprobante: " + errorCFDI33);
@@ -727,33 +834,41 @@ namespace CertificadorWs
             return result;
         }
 
-        private ServicioLocal.Business.Complemento.Pagos DesSerializarPagos(XElement element)
+        private ServicioLocal.Business.Complemento.Pagos DesSerializarPagos(XElement element, ref string errorespago)
         {
-            IEnumerable<XElement> ImpL = element.Elements(this._ns + "Complemento");
-            ServicioLocal.Business.Complemento.Pagos result;
-            if (ImpL != null)
+            try
             {
-                IEnumerable<XElement> pag = ImpL.Elements(this._ns7 + "Pagos");
-                using (IEnumerator<XElement> enumerator = pag.GetEnumerator())
+                IEnumerable<XElement> ImpL = element.Elements(this._ns + "Complemento");
+                ServicioLocal.Business.Complemento.Pagos result;
+                if (ImpL != null)
                 {
-                    if (enumerator.MoveNext())
+                    IEnumerable<XElement> pag = ImpL.Elements(this._ns7 + "Pagos");
+                    using (IEnumerator<XElement> enumerator = pag.GetEnumerator())
                     {
-                        XElement e = enumerator.Current;
-                        XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Complemento.Pagos));
-                        string xml = e.ToString();
-                        StringReader reader = new StringReader(xml);
-                        ServicioLocal.Business.Complemento.Pagos comLXMLComprobante = (ServicioLocal.Business.Complemento.Pagos)ser.Deserialize(reader);
-                        result = comLXMLComprobante;
-                        return result;
+                        if (enumerator.MoveNext())
+                        {
+                            XElement e = enumerator.Current;
+                            XmlSerializer ser = new XmlSerializer(typeof(ServicioLocal.Business.Complemento.Pagos));
+                            string xml = e.ToString();
+                            StringReader reader = new StringReader(xml);
+                            ServicioLocal.Business.Complemento.Pagos comLXMLComprobante = (ServicioLocal.Business.Complemento.Pagos)ser.Deserialize(reader);
+                            result = comLXMLComprobante;
+                            return result;
+                        }
                     }
+                    result = null;
                 }
-                result = null;
+                else
+                {
+                    result = null;
+                }
+                return result;
             }
-            else
+            catch (Exception ex)
             {
-                result = null;
+                errorespago = ex.InnerException.Message;
+                 return null;
             }
-            return result;
         }
 
         public string ConsultaEstatusCFDI(string expresion)

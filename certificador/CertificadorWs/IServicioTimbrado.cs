@@ -15,7 +15,8 @@ namespace CertificadorWs
         string ConsultaAceptacionRechazo(string userName, string password, string rfcEmisor, string rfcReceptor);
 
         [OperationContract]
-        string ProcesarRespuestaAceptacionRechazo(string userName, string password, List<Folios> uuid, string rfcEmisor, string rfcReceptor);
+         string ProcesarRespuestaAceptacionRechazo(string userName, string password, List<Folios> uuid, string rfcEmisor, string rfcReceptor);
+      //  string ProcesarRespuestaAceptacionRechazo(string userName, string password, string uuid, string rfcEmisor, string rfcReceptor);
 
         [OperationContract]
         string ConsultaEstatusCFDI(string userName, string password, string expresion);
